@@ -195,7 +195,7 @@ def getLRFunction(lrPolicy, k0, k1=None, gamma=None, p=None, l=None):
         raise Exception('Learning Rate lrPolicy not defined!')
 def update_learning_rate(optimizer, lr):
     for param_group in optimizer.param_groups:
-        # print(lr)
+        print(lr)
         param_group['lr'] = lr
 class piecewiseLR():
     def __init__(self, _subRegions, _LRparams):

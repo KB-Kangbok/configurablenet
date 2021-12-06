@@ -98,19 +98,26 @@ def train_mnist(config):
     train_loader, test_loader = get_data_loaders()
     model = ConvNet().to(device)
 
-    optimizer = optim.SGD(
-        model.parameters(), lr=config["lr"], momentum=config["momentum"])
-    # optimizer = optim.Adadelta(model.parameters(), lr=1.0)
+    # optimizer = optim.SGD(
+    #     model.parameters(), lr=config["lr"], momentum=config["momentum"])
+    optimizer = optim.Adadelta(model.parameters(), lr=config['lr'])
+    config['lrBench']['k0'] = config['lr']
     lrbenchLR = piecewiseLR([config['stop_iteration'], ], [config['lrBench']])
     i = 1
     while True:
         train(model, optimizer, train_loader, device)
         acc = test(model, test_loader, device)
         update_learning_rate(optimizer, lrbenchLR.getLR(i-1))
+        if i != 1 and get_lr(optimizer) == config['lr']:
+            return
         i += 1
+        
+        
         # Set this to run Tune.
         tune.report(mean_accuracy=acc)
-
+def get_lr(optimizer):
+    for param_group in optimizer.param_groups:
+        return param_group['lr']
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="PyTorch MNIST Example")
@@ -143,7 +150,7 @@ if __name__ == "__main__":
 
     # for early stopping
     sched = ASHAScheduler()
-    stop_iteration = 200
+    stop_iteration = 100
     analysis = tune.run(
         train_mnist,
         metric="mean_accuracy",
@@ -155,15 +162,14 @@ if __name__ == "__main__":
             "training_iteration": stop_iteration
         },
         resources_per_trial={
-            "cpu": 2,
+            "cpu": 12,
             "gpu": int(args.cuda)  # set this for GPUs
         },
         num_samples=1 if args.smoke_test else 1,
         config={
-            "lr": tune.grid_search([0.001, 0.1]),
-            "momentum": tune.grid_search([0.9]),
+            "lr": tune.grid_search([0.1]),
             'lrBench' : {'lrPolicy': 'SINEXP', 'k0': 1.0, 'k1':3.0, 'l': 5, 'gamma':0.94},
-            'stop_iteration': stop_iteration
+            'stop_iteration': stop_iteration,
         })
 
     print("Best config is:", analysis.best_config)
