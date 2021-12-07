@@ -13,47 +13,56 @@ TEST_SIZE = 256
 
 class ConfigurableNet:
   def __init__(self):
+    self.tune = tune
     self.dl = None
     self.nn = None
     self.dataloader = None
     self.config = None
     self.optim = None
-    self.vision = None
+    self.dataset = None
+    self.transforms = None
+    self.data_path = None
   
-  def set_searchspace(self, dl, net, dataloader, config, optim, vision):
+  def set_space(self, dl, net, config, optim):
     self.dl = dl
     self.net = net
-    self.dataloader = dataloader
     self.config = config
     self.optim = optim
-    self.vision = vision
 
-  def data_loader(self, data_path):
-    transform = self.vision.transforms.Compose(
-        [self.vision.transforms.ToTensor(),
-         self.vision.transforms.Normalize((0.1307, ), (0.3081, ))])
+  def data_loader(self, dataloader, dataset, transforms, data_path):
+    self.dataloader = dataloader
+    self.dataset = dataset
+    self.transforms = transforms
+    self.data_path = data_path
+
+  def load_data(self):
+
+    transform = self.transforms.Compose(
+        [self.transforms.ToTensor(),
+         self.transforms.Normalize((0.1307, ), (0.3081, ))])
     
     # We add FileLock here because multiple workers will want to
     # download data, and this may cause overwrites since
     # DataLoader is not threadsafe.
-    with FileLock(os.path.expanduser(f"{data_path}.lock")):
+    with FileLock(os.path.expanduser(f"{self.data_path}.lock")):
         train_loader = self.dataloader(
-            self.vision.datasets.MNIST(
-                data_path,
+            self.dataset(
+                self.data_path,
                 train=True,
                 download=True,
                 transform=transform),
             batch_size=64,
             shuffle=True)
         test_loader = self.dataloader(
-            self.vision.datasets.MNIST(
-                data_path,
+            self.dataset(
+                self.data_path,
                 train=False,
                 download=True,
                 transform=transform),
             batch_size=64,
             shuffle=True)
     return train_loader, test_loader
+
 
   def __train__(self, model, optimizer, train_loader, device):
     device = device
@@ -88,7 +97,7 @@ class ConfigurableNet:
   def train(self, config):
     use_cuda = self.dl.cuda.is_available()
     device = self.dl.device("cuda" if use_cuda else "cpu")
-    train_loader, test_loader = self.data_loader("~/data")
+    train_loader, test_loader = self.load_data()
     model = self.net.to(device)
 
     optimizer = self.optim.Adadelta(model.parameters(), lr=config["lr"])
@@ -111,7 +120,7 @@ class ConfigurableNet:
 
         i += 1
         # Set this to run Tune.
-        tune.report(mean_accuracy=acc)
+        self.tune.report(mean_accuracy=acc)
 
   def run(self):
     parser = argparse.ArgumentParser(description="PyTorch MNIST Example")
@@ -144,7 +153,7 @@ class ConfigurableNet:
 
     sched = FIFOScheduler()
     
-    analysis = tune.run(
+    analysis = self.tune.run(
         lambda cfg: self.train(cfg),
         metric="mean_accuracy",
         mode="max",

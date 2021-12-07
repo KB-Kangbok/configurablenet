@@ -5,8 +5,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchvision
 
-from ray import tune
-
 
 class ConvNet(nn.Module):
     def __init__(self):
@@ -21,16 +19,16 @@ class ConvNet(nn.Module):
         return F.log_softmax(x, dim=1)
 
 if __name__ == "__main__":
+    convnet = ConvNet()
+    Net = ConfigurableNet()
     config = {
-            "lr": tune.grid_search([0.001, 0.1]),
-            'lrBench' : tune.grid_search([{'lrPolicy': 'SINEXP', 'k0': 1.0, 'k1':3.0, 'l': 5, 'gamma':0.94},
+            "lr": Net.tune.grid_search([0.001, 0.1]),
+            'lrBench' : Net.tune.grid_search([{'lrPolicy': 'SINEXP', 'k0': 1.0, 'k1':3.0, 'l': 5, 'gamma':0.94},
                                   {'lrPolicy': 'POLY', 'k0': 0.2, 'k1':1.0, 'p':1.2, 'l':30},
                                   {'lrPolicy': 'FIX'}]),
             'stop_iteration': 200,
             'user_option': {'accuracy_threshold': 0.5}
         }
-    convnet = ConvNet()
-    Net = ConfigurableNet()
-    Net.set_searchspace(torch, convnet, torch.utils.data.DataLoader, config, torch.optim, torchvision)
-    Net.data_loader("~/data")
+    Net.set_space(torch, convnet, config, torch.optim)
+    Net.data_loader(torch.utils.data.DataLoader, torchvision.datasets.MNIST , torchvision.transforms, "~/data")
     Net.run()
