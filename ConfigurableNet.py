@@ -5,8 +5,9 @@ from filelock import FileLock
 import ray
 from ray import tune
 from ray.tune.schedulers import ASHAScheduler
+from LRBench.framework.pytorch.utility import update_learning_rate
+from LRBench.lr.piecewiseLR import piecewiseLR
 
-from LRBench import getLRFunction, update_learning_rate, piecewiseLR
 # Change these values if you want the training to run quicker or slower.
 EPOCH_SIZE = 512
 TEST_SIZE = 256
@@ -95,12 +96,14 @@ class ConfigurableNet:
     # optimizer = self.optim.SGD(
     #     model.parameters(), lr=config["lr"], momentum=config["momentum"])
     optimizer = self.optim.Adadelta(model.parameters(), lr=config["lr"])
-    lrbenchLR = piecewiseLR([config['stop_iteration'], ], [config['lrBench']])
+    lrbenchLR = piecewiseLR([11], config['lrBench'])
     i = 1
     while True:
         self.__train__(model, optimizer, train_loader, device)
         acc = self.test(model, test_loader, device)
         update_learning_rate(optimizer, lrbenchLR.getLR(i-1))
+        if i == 13:
+            return
         i += 1
         # Set this to run Tune.
         tune.report(mean_accuracy=acc)
@@ -137,13 +140,12 @@ class ConfigurableNet:
     sched = ASHAScheduler()
     
     analysis = tune.run(
-        lambda cfg: self.train(cfg),
+        self.train,
         metric="mean_accuracy",
         mode="max",
         name="exp",
         scheduler=sched,
         stop={
-            "mean_accuracy": 0.98,
             "training_iteration": self.config["stop_iteration"]
         },
         resources_per_trial={
