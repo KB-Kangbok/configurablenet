@@ -26,7 +26,8 @@ if __name__ == "__main__":
             'lrBench' : tune.grid_search([{'lrPolicy': 'SINEXP', 'k0': 1.0, 'k1':3.0, 'l': 5, 'gamma':0.94},
                                   {'lrPolicy': 'POLY', 'k0': 0.2, 'k1':1.0, 'p':1.2, 'l':30},
                                   {'lrPolicy': 'FIX'}]),
-            'stop_iteration': 200
+            'stop_iteration': 200,
+            'user_option': {'accuracy_threshold': 0.5}
         }
     convnet = ConvNet()
     Net = ConfigurableNet()

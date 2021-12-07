@@ -160,7 +160,13 @@ class ConfigurableNet:
         num_samples=1 if args.smoke_test else 1,
         config=self.config)
     
-    print("Best config is:", analysis.best_config)
-
+    if 'user_option' in self.config:
+        if 'accuracy_threshold' in self.config['user_option']:
+            results = analysis.results
+            results = {key: value for (key, value)in results.items() if value['mean_accuracy'] > self.config['user_option']['accuracy_threshold']}
+            best = min(results.items(), key=lambda x: x[1]['time_total_s'])
+            print("Best config is:", best[1]['config'])
+    else:
+        print("Best config is:", analysis.best_config)
 
   
