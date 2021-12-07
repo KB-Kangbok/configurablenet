@@ -4,9 +4,7 @@ from filelock import FileLock
 
 import ray
 from ray import tune
-from ray.tune.schedulers import ASHAScheduler, FIFOScheduler
-from LRBench.framework.pytorch.utility import update_learning_rate
-from LRBench.lr.piecewiseLR import piecewiseLR
+from ray.tune.schedulers import FIFOScheduler
 from LRBench.lr.LR import LR
 
 # Change these values if you want the training to run quicker or slower.
@@ -92,19 +90,21 @@ class ConfigurableNet:
     device = self.dl.device("cuda" if use_cuda else "cpu")
     train_loader, test_loader = self.data_loader("~/data")
     model = self.net.to(device)
-    # config = self.config
 
-    # optimizer = self.optim.SGD(
-    #     model.parameters(), lr=config["lr"], momentum=config["momentum"])
     optimizer = self.optim.Adadelta(model.parameters(), lr=config["lr"])
-    lrbench_config =  {**config['lrBench'], **{'k0':config['lr']}} if config['lrBench']['lrPolicy'] == 'FIX' else config['lrBench']
 
+    # Set initial learning rate for FIX condition
+    lrbench_config =  {**config['lrBench'], **{'k0':config['lr']}} if config['lrBench']['lrPolicy'] == 'FIX' else config['lrBench']
     lrbenchLR = LR(lrbench_config)
     i = 1
     while True:
         self.__train__(model, optimizer, train_loader, device)
         acc = self.test(model, test_loader, device)
-        update_learning_rate(optimizer, lrbenchLR.getLR(i-1))
+        # Update learning rate
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lrbenchLR.getLR(i - 1)
+
+        # Termination condition for POLY
         if config['lrBench']['lrPolicy'] == 'POLY':
             if i == config['lrBench']['l']+1:
                 return
