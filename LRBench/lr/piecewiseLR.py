@@ -7,10 +7,6 @@ class piecewiseLR(LR):
         self.subRegions = _subRegions
         self.LRparams = _LRparams
         self.LRfunctions = list()
-        print(self.subRegions)
-        print(self.LRparams)
-        print(len(self.subRegions))
-        print(len(self.LRparams))
         if len(self.subRegions) >= len(self.LRparams):
             raise Exception("LR policy error! the length of the sub-regions should be less than the LR parameters")
         for lrParam in self.LRparams:

@@ -22,10 +22,10 @@ class ConvNet(nn.Module):
 
 if __name__ == "__main__":
     config = {
-            "lr": tune.grid_search([0.001, 0.01]),
+            "lr": tune.grid_search([0.001, 0.1]),
             'lrBench' : tune.grid_search([{'lrPolicy': 'SINEXP', 'k0': 1.0, 'k1':3.0, 'l': 5, 'gamma':0.94},
-                                  {'lrPolicy': 'POLY', 'k0': 0.1, 'k1':0.5, 'p':1.2, 'l':5},
-                                  {'lrPolicy': 'FIX', 'k0': 1.0}]),
+                                  {'lrPolicy': 'POLY', 'k0': 0.2, 'k1':1.0, 'p':1.2, 'l':30},
+                                  {'lrPolicy': 'FIX'}]),
             'stop_iteration': 200
         }
     convnet = ConvNet()

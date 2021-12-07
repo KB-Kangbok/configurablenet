@@ -4,9 +4,10 @@ from filelock import FileLock
 
 import ray
 from ray import tune
-from ray.tune.schedulers import ASHAScheduler
+from ray.tune.schedulers import ASHAScheduler, FIFOScheduler
 from LRBench.framework.pytorch.utility import update_learning_rate
 from LRBench.lr.piecewiseLR import piecewiseLR
+from LRBench.lr.LR import LR
 
 # Change these values if you want the training to run quicker or slower.
 EPOCH_SIZE = 512
@@ -96,14 +97,18 @@ class ConfigurableNet:
     # optimizer = self.optim.SGD(
     #     model.parameters(), lr=config["lr"], momentum=config["momentum"])
     optimizer = self.optim.Adadelta(model.parameters(), lr=config["lr"])
-    lrbenchLR = piecewiseLR([11], config['lrBench'])
+    lrbench_config =  {**config['lrBench'], **{'k0':config['lr']}} if config['lrBench']['lrPolicy'] == 'FIX' else config['lrBench']
+
+    lrbenchLR = LR(lrbench_config)
     i = 1
     while True:
         self.__train__(model, optimizer, train_loader, device)
         acc = self.test(model, test_loader, device)
         update_learning_rate(optimizer, lrbenchLR.getLR(i-1))
-        if i == 13:
-            return
+        if config['lrBench']['lrPolicy'] == 'POLY':
+            if i == config['lrBench']['l']+1:
+                return
+
         i += 1
         # Set this to run Tune.
         tune.report(mean_accuracy=acc)
@@ -137,10 +142,10 @@ class ConfigurableNet:
         ray.shutdown()
         ray.init(num_cpus=2 if args.smoke_test else None)
 
-    sched = ASHAScheduler()
+    sched = FIFOScheduler()
     
     analysis = tune.run(
-        self.train,
+        lambda cfg: self.train(cfg),
         metric="mean_accuracy",
         mode="max",
         name="exp",
