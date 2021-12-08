@@ -51,7 +51,7 @@ class ConfigurableNet:
                 train=True,
                 download=True,
                 transform=transform),
-            batch_size=64,
+            batch_size=self.config['batch_size'],
             shuffle=True)
         test_loader = self.dataloader(
             self.dataset(
@@ -59,7 +59,7 @@ class ConfigurableNet:
                 train=False,
                 download=True,
                 transform=transform),
-            batch_size=64,
+            batch_size=self.config['batch_size'],
             shuffle=True)
     return train_loader, test_loader
 
@@ -122,6 +122,41 @@ class ConfigurableNet:
         # Set this to run Tune.
         self.tune.report(mean_accuracy=acc)
 
+  def print_Dict(self, dictionary_item):
+    for key, value in dictionary_item.items():
+      space = len(str(value))
+      print(f"{key}: {value}", end="\t")
+      if space < 5:
+        print("\t", end="")
+    print("")
+
+  def change_report(self, idx, dictionary_item):
+    result = dict()
+    result['rank'] = idx
+    for key, value in dictionary_item['config'].items():
+      if key != 'stop_iteration' and key != 'user_option':
+        result[key] = value
+    return result
+
+  def report(self, analysis, config=None):
+    report = list(analysis.results.values())
+    best_config = None
+    if config is not None:
+      if 'user_option' in config:
+        if 'accuracy_threshold' in config['user_option']:
+          report = [item for item in report if item['mean_accuracy'] > config['user_option']['accuracy_threshold']]
+          report = sorted(report, key = lambda item: item['time_total_s'])
+        else:
+          report = sorted(report, key = lambda item: item['mean_accuracy'], reverse=True)
+        if 'head' in config['user_option']:
+          report = report[:config['user_option']['head']]
+    
+    best_config = report[0]['config']
+    report = [self.change_report(idx, item) for idx, item in enumerate(report)]
+    for item in report:
+      self.print_Dict(item)
+    return best_config
+
   def run(self):
     parser = argparse.ArgumentParser(description="PyTorch MNIST Example")
     parser.add_argument(
@@ -169,13 +204,6 @@ class ConfigurableNet:
         num_samples=1 if args.smoke_test else 1,
         config=self.config)
     
-    if 'user_option' in self.config:
-        if 'accuracy_threshold' in self.config['user_option']:
-            results = analysis.results
-            results = {key: value for (key, value)in results.items() if value['mean_accuracy'] > self.config['user_option']['accuracy_threshold']}
-            best = min(results.items(), key=lambda x: x[1]['time_total_s'])
-            print("Best config is:", best[1]['config'])
-    else:
-        print("Best config is:", analysis.best_config)
+    best_config = self.report(analysis, self.config)
+    print("\nBest config is: ", best_config)
 
-  

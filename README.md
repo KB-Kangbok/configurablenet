@@ -21,9 +21,11 @@ You can use functions inside ray.tune module by calling ConfigurableNet object's
 
 - lr: initial learning rate
 - lrBench: lrbench parameters
+- batch_size: batch size
 - stop_iteration: max iteration
 - user_option: user custom option
   - accuracy_threshold: minimum accuracy to pass over. with this option on, shortest runtime config will be the best config
+  - head: show top `head` number of config results
 
 For lrPolicy FIX, do not pass in k0 value as it will be covered by initial learning rate, lr.
 
