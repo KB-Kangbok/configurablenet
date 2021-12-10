@@ -23,12 +23,15 @@ if __name__ == "__main__":
     Net = ConfigurableNet()
     config = {
             "lr": Net.tune.grid_search([0.001, 0.1]),
-            'lrBench' : Net.tune.grid_search([{'lrPolicy': 'SINEXP', 'k0': 1.0, 'k1':3.0, 'l': 5, 'gamma':0.94},
-                                  {'lrPolicy': 'POLY', 'k0': 0.2, 'k1':1.0, 'p':1.2, 'l':30},
-                                  {'lrPolicy': 'FIX'}]),
+            'lrBench' : Net.tune.grid_search([
+                                {'lrPolicy': 'SINEXP', 'k0': 1.0, 'k1':3.0, 'l': 5, 'gamma':0.94},
+                                {'lrPolicy': 'SINEXP', 'k0': 0.5, 'k1':3.0, 'l': 5, 'gamma':0.94},
+                                {'lrPolicy': 'POLY', 'k0': 0.2, 'k1':1.0, 'p':1.2, 'l':30},
+                                {'lrPolicy': 'POLY', 'k0': 0.4, 'k1':1.0, 'p':1.2, 'l':30},
+                                {'lrPolicy': 'FIX'}]),
             'batch_size': 64,
-            'stop_iteration': 200,
-            'user_option': {'accuracy_threshold': 0.5, 'head': 3}
+            'stop_iteration': Net.tune.grid_search([100, 200, 300]),
+            'user_option': {'accuracy_threshold': 0.95, 'head': 5}
         }
     Net.set_space(torch, convnet, config, torch.optim)
     Net.data_loader(torch.utils.data.DataLoader, torchvision.datasets.MNIST , torchvision.transforms, "~/data")

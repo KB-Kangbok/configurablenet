@@ -134,7 +134,7 @@ class ConfigurableNet:
     result = dict()
     result['rank'] = idx
     for key, value in dictionary_item['config'].items():
-      if key != 'stop_iteration' and key != 'user_option':
+      if key != 'user_option':
         result[key] = value
     return result
 
@@ -150,7 +150,9 @@ class ConfigurableNet:
           report = sorted(report, key = lambda item: item['mean_accuracy'], reverse=True)
         if 'head' in config['user_option']:
           report = report[:config['user_option']['head']]
-    
+    if len(report) == 0:
+      print("No results satisfying the user options") 
+      return
     best_config = report[0]['config']
     report = [self.change_report(idx, item) for idx, item in enumerate(report)]
     for item in report:
